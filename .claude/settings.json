@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create *)",
+      "Bash(npm install *)",
+      "Bash(yarn --version)",
+      "Bash(pnpm --version)",
+      "Bash(npm ping *)",
+      "Bash(npm config *)",
+      "Bash(./node_modules/.bin/vite --version)",
+      "Bash(npx vite *)",
+      "Bash(curl -s http://localhost:5173/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173/)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\" http://localhost:5173/)",
+      "Bash(curl -s -X POST https://tmp.sabirideweb.com.ng/auth/admin/login -H 'Content-Type: application/json' -d '{\"email\":\"ops@sabiride.net\",\"password\":\"test\"}')",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://tmp.sabirideweb.com.ng/api/auth/admin/login -X POST -H \"Content-Type: application/json\" -d '{\"email\":\"ops@sabiride.net\",\"password\":\"test\"}')",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://tmp.sabirideweb.com.ng/api/admin/login -X POST -H \"Content-Type: application/json\" -d '{\"email\":\"ops@sabiride.net\",\"password\":\"test\"}')",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://tmp.sabirideweb.com.ng/admin/login/ -X POST)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://tmp.sabirideweb.com.ng/)",
+      "Bash(wait)",
+      "Bash(curl -s https://tmp.sabirideweb.com.ng/)",
+      "Bash(python3 -c \"import sys,re; body=sys.stdin.read\\(\\); print\\(body[:500]\\)\")",
+      "Bash(curl -s \"https://tmp.sabirideweb.com.ng/swagger.json\")",
+      "Bash(python3 -c ' *)",
+      "Bash(curl -s \"https://tmp.sabirideweb.com.ng/swagger/?format=json\")",
+      "Bash(curl -sv \"https://tmp.sabirideweb.com.ng/\")",
+      "Bash(curl -s \"https://tmp.sabirideweb.com.ng/redoc-init.41348b1afc50.js\")",
+      "Bash(curl -s \"https://tmp.sabirideweb.com.ng/static/drf-yasg/redoc-init.41348b1afc50.js\")",
+      "Bash(python3 -c \"import sys; print\\(sys.stdin.read\\(\\)[:500]\\)\")",
+      "Bash(curl -s -o /dev/null -w '%{http_code}' https://tmp.sabirideweb.com.ng__TRACKED_VAR__)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code} /api/schema/\\\\n\" \"https://tmp.sabirideweb.com.ng/api/schema/\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code} /api/\\\\n\" \"https://tmp.sabirideweb.com.ng/api/\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code} /api/v1/\\\\n\" \"https://tmp.sabirideweb.com.ng/api/v1/\")",
+      "Bash(python3 -c \"import sys; print\\(sys.stdin.read\\(\\)[:1000]\\)\")",
+      "Bash(curl -s \"https://tmp.sabirideweb.com.ng/?format=openapi\")"
+    ]
+  }
+}
