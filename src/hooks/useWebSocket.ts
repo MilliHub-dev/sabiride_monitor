@@ -18,7 +18,7 @@ import {
 } from '../types';
 
 const RECONNECT_DELAY = 4000;
-const HEARTBEAT_INTERVAL = 25000; // send ping every 25 s to stay alive
+const HEARTBEAT_INTERVAL = 25000;
 const MONITOR_PATH = '/ride/monitor';
 
 // Module-level ref so non-hook code (e.g. API functions) can send actions
@@ -31,54 +31,10 @@ export function sendWsAction(action: string, params?: Record<string, unknown>) {
   }
 }
 
-function useFallbackMock() {
-  useEffect(() => {
-    // Location drift every 5 s
-    const locationInterval = setInterval(() => {
-      useDriverStore.getState().drivers.forEach((d) => {
-        useDriverStore.getState().updateLocation({
-          driverId: d.id,
-          lat: d.location.lat + (Math.random() - 0.5) * 0.002,
-          lng: d.location.lng + (Math.random() - 0.5) * 0.002,
-        });
-      });
-    }, 5000);
-
-    // Simulated new ride request every 45 s
-    const rideInterval = setInterval(() => {
-      const routes = [
-        { pickup: { lat: 9.0591, lng: 7.4807 }, destination: { lat: 9.0895, lng: 7.4837 }, fare: 1600 },
-        { pickup: { lat: 9.0920, lng: 7.4100 }, destination: { lat: 9.0472, lng: 7.4744 }, fare: 2200 },
-        { pickup: { lat: 9.0264, lng: 7.5022 }, destination: { lat: 9.0778, lng: 7.4493 }, fare: 1900 },
-      ];
-      const r = routes[Math.floor(Math.random() * routes.length)];
-      const id = `mock-${Date.now()}`;
-      useRideStore.getState().addRide({
-        id,
-        passenger: { id, name: `Passenger #${id.slice(-5).toUpperCase()}`, phone: '' },
-        pickup: r.pickup,
-        destination: r.destination,
-        fare: r.fare,
-        currency: 'NGN',
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-      });
-    }, 45000);
-
-    return () => {
-      clearInterval(locationInterval);
-      clearInterval(rideInterval);
-    };
-  }, []);
-}
-
 export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const useMock = useRef(false);
-
-  useFallbackMock();
 
   useEffect(() => {
     function stopHeartbeat() {
@@ -105,7 +61,6 @@ export function useWebSocket() {
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
-      // Expose send function globally
       _send = (data) => {
         if (ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify(data));
@@ -113,9 +68,8 @@ export function useWebSocket() {
       };
 
       ws.onopen = () => {
-        useMock.current = false;
+
         startHeartbeat(ws);
-        // Request initial data
         ws.send(JSON.stringify({ action: 'list_drivers' }));
         ws.send(JSON.stringify({ action: 'list_passengers' }));
       };
@@ -131,14 +85,13 @@ export function useWebSocket() {
       };
 
       ws.onerror = () => {
-        // On error fall back to mock; will still reconnect
-        useMock.current = true;
+
       };
 
       ws.onclose = () => {
         stopHeartbeat();
         _send = null;
-        useMock.current = true;
+
         reconnectRef.current = setTimeout(connect, RECONNECT_DELAY);
       };
     }
@@ -201,11 +154,9 @@ function handleMessage(msg: WsMessage) {
     }
 
     case 'manual_match_sent':
-      // Driver has been notified; ride stays pending until driver accepts
       break;
 
     case 'pending_refreshed':
-      // Re-request full passenger list after a resync
       sendWsAction('list_passengers');
       break;
 

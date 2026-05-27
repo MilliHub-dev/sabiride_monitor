@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useDriverStore } from '../store/useDriverStore';
 import { useRideStore } from '../store/useRideStore';
-import { getOnlineDrivers } from '../api/drivers';
-import { getLiveRides } from '../api/rides';
 import LiveMap from '../components/map/LiveMap';
 import RidePopupCard from '../components/map/RidePopupCard';
 import DriverSidebar from '../components/drivers/DriverSidebar';
@@ -19,10 +17,8 @@ export default function Home() {
   const drivers = useDriverStore((s) => s.drivers);
   const selectedDriverId = useDriverStore((s) => s.selectedDriverId);
   const setSelectedDriver = useDriverStore((s) => s.setSelectedDriver);
-  const setDrivers = useDriverStore((s) => s.setDrivers);
 
   const pendingRides = useRideStore((s) => s.pendingRides);
-  const setRides = useRideStore((s) => s.setRides);
   const updateRide = useRideStore((s) => s.updateRide);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -32,16 +28,6 @@ export default function Home() {
   const [assigningRide, setAssigningRide] = useState<Ride | null>(null);
   const [dismissedRideIds, setDismissedRideIds] = useState<Set<string>>(new Set());
 
-  // Initial data load
-  useEffect(() => {
-    getOnlineDrivers()
-      .then((res) => setDrivers(res.data))
-      .catch(() => {});
-
-    getLiveRides()
-      .then((res) => setRides(res.data))
-      .catch(() => {});
-  }, [setDrivers, setRides]);
 
   // Auto-pan to new ride requests
   useEffect(() => {

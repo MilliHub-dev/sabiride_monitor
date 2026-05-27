@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRideStore } from '../store/useRideStore';
-import { getRides } from '../api/rides';
 import RidesTable from '../components/rides/RidesTable';
 import AssignModal from '../components/rides/AssignModal';
 import type { Ride } from '../types';
@@ -18,71 +17,52 @@ const FILTERS: { label: string; value: StatusFilter }[] = [
 const PAGE_SIZE = 20;
 
 export default function Rides() {
+  const rides = useRideStore((s) => s.rides);
   const pendingRides = useRideStore((s) => s.pendingRides);
-  const setRides = useRideStore((s) => s.setRides);
   const updateRide = useRideStore((s) => s.updateRide);
 
-  const [apiRides, setApiRides] = useState<Ride[]>([]);
-  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const [assigningRide, setAssigningRide] = useState<Ride | null>(null);
 
-  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const filteredRides = useMemo(() => {
+    let list = [...rides];
+    if (statusFilter !== 'all') {
+      list = list.filter((r) =>
+        statusFilter === 'active'
+          ? r.status === 'active' || r.status === 'accepted'
+          : r.status === statusFilter,
+      );
+    }
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(
+        (r) =>
+          r.passenger.name.toLowerCase().includes(q) ||
+          r.pickup.address?.toLowerCase().includes(q) ||
+          r.destination.address?.toLowerCase().includes(q),
+      );
+    }
+    return list;
+  }, [rides, statusFilter, search]);
 
-  const fetchRides = useCallback(
-    (status: StatusFilter, query: string, pg: number) => {
-      setLoading(true);
-      getRides({
-        status: status === 'all' ? undefined : status,
-        search: query || undefined,
-        page: pg,
-        limit: PAGE_SIZE,
-      })
-        .then((res) => {
-          setApiRides(res.data.data);
-          setTotal(res.data.total);
-          // Sync pending rides into the global store too
-          setRides(res.data.data);
-        })
-        .catch(() => {})
-        .finally(() => setLoading(false));
-    },
-    [setRides],
-  );
-
-  // Fetch on filter / page change
-  useEffect(() => {
-    fetchRides(statusFilter, search, page);
-  }, [statusFilter, page]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Debounce search input
-  useEffect(() => {
-    if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    searchTimeout.current = setTimeout(() => {
-      setPage(1);
-      fetchRides(statusFilter, search, 1);
-    }, 350);
-    return () => {
-      if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    };
-  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
+  const totalPages = Math.ceil(filteredRides.length / PAGE_SIZE);
+  const pageRides = filteredRides.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const handleFilterChange = (f: StatusFilter) => {
     setStatusFilter(f);
     setPage(1);
   };
 
-  const handleAssigned = (rideId: string) => {
-    updateRide(rideId, { status: 'accepted' });
-    setApiRides((prev) =>
-      prev.map((r) => (r.id === rideId ? { ...r, status: 'accepted' } : r)),
-    );
+  const handleSearchChange = (q: string) => {
+    setSearch(q);
+    setPage(1);
   };
 
-  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const handleAssigned = (rideId: string) => {
+    updateRide(rideId, { status: 'accepted' });
+  };
 
   return (
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16, height: '100%', boxSizing: 'border-box' }}>
@@ -93,7 +73,7 @@ export default function Rides() {
             Rides
           </h1>
           <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--color-text-secondary)' }}>
-            {total > 0 ? `${total} total` : ''}
+            {filteredRides.length > 0 ? `${filteredRides.length} total` : ''}
             {pendingRides.length > 0 && (
               <span style={{ marginLeft: 8, color: 'var(--color-danger)', fontWeight: 600 }}>
                 · {pendingRides.length} pending
@@ -107,7 +87,7 @@ export default function Rides() {
           type="text"
           placeholder="Search passenger or location…"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => handleSearchChange(e.target.value)}
           style={{
             width: 260,
             padding: '8px 14px',
@@ -176,8 +156,8 @@ export default function Rides() {
       {/* Table */}
       <div style={{ flex: 1, overflow: 'auto' }}>
         <RidesTable
-          rides={apiRides}
-          loading={loading}
+          rides={pageRides}
+          loading={false}
           onAssign={(ride) => setAssigningRide(ride)}
         />
       </div>

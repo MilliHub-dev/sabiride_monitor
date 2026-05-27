@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { getLiveStats } from '../../api/stats';
-import type { LiveStats } from '../../types';
+import { useDriverStore } from '../../store/useDriverStore';
+import { useRideStore } from '../../store/useRideStore';
+import { useStreamStore } from '../../store/useStreamStore';
 
 interface StatItem {
   label: string;
@@ -9,28 +9,18 @@ interface StatItem {
 }
 
 export default function TopNav() {
-  const [stats, setStats] = useState<LiveStats | null>(null);
+  const drivers = useDriverStore((s) => s.drivers);
+  const rides = useRideStore((s) => s.rides);
+  const pendingRides = useRideStore((s) => s.pendingRides);
+  const streams = useStreamStore((s) => s.streams);
 
-  useEffect(() => {
-    const fetch = () =>
-      getLiveStats()
-        .then((res) => setStats(res.data))
-        .catch(() => {});
-
-    fetch();
-    const interval = setInterval(fetch, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const items: StatItem[] = stats
-    ? [
-        { label: 'Online Drivers', value: stats.onlineDrivers, color: 'var(--color-primary)' },
-        { label: 'Pending Rides', value: stats.pendingRides, color: 'var(--color-danger)' },
-        { label: 'Active Rides', value: stats.activeRides, color: 'var(--color-warning)' },
-        { label: 'Completed Today', value: stats.completedToday, color: 'var(--color-text-primary)' },
-        { label: 'Live Streams', value: stats.activeStreams, color: 'var(--color-info)' },
-      ]
-    : [];
+  const items: StatItem[] = [
+    { label: 'Online Drivers', value: drivers.filter((d) => d.status === 'online').length, color: 'var(--color-primary)' },
+    { label: 'Pending Rides', value: pendingRides.length, color: 'var(--color-danger)' },
+    { label: 'Active Rides', value: rides.filter((r) => r.status === 'active').length, color: 'var(--color-warning)' },
+    { label: 'Completed', value: rides.filter((r) => r.status === 'completed').length, color: 'var(--color-text-primary)' },
+    { label: 'Live Streams', value: streams.length, color: 'var(--color-info)' },
+  ];
 
   return (
     <header
@@ -45,25 +35,21 @@ export default function TopNav() {
         flexShrink: 0,
       }}
     >
-      {items.length === 0 ? (
-        <span style={{ color: 'var(--color-text-muted)', fontSize: 13 }}>Loading stats…</span>
-      ) : (
-        items.map(({ label, value, color }) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span
-              style={{
-                fontFamily: 'JetBrains Mono, monospace',
-                fontSize: 20,
-                fontWeight: 600,
-                color: color ?? 'var(--color-text-primary)',
-              }}
-            >
-              {value}
-            </span>
-            <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{label}</span>
-          </div>
-        ))
-      )}
+      {items.map(({ label, value, color }) => (
+        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span
+            style={{
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: 20,
+              fontWeight: 600,
+              color: color ?? 'var(--color-text-primary)',
+            }}
+          >
+            {value}
+          </span>
+          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{label}</span>
+        </div>
+      ))}
     </header>
   );
 }

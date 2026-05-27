@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Ride, Driver } from '../../types';
 import { assignDriver } from '../../api/rides';
-import { getOnlineDrivers } from '../../api/drivers';
+import { useDriverStore } from '../../store/useDriverStore';
 import { haversineKm, formatDistance } from '../../utils/distance';
 import { formatNaira } from '../../utils/format';
 import { toast } from '../../store/useToastStore';
@@ -13,27 +13,21 @@ interface Props {
 }
 
 export default function AssignModal({ ride, onClose, onAssigned }: Props) {
-  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const storeDrivers = useDriverStore((s) => s.drivers);
+  const drivers = useMemo<Driver[]>(() =>
+    storeDrivers
+      .filter((d) => d.status !== 'offline')
+      .map((d) => ({
+        ...d,
+        distanceKm: haversineKm(ride.pickup.lat, ride.pickup.lng, d.location.lat, d.location.lng),
+      }))
+      .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0)),
+    [storeDrivers, ride.pickup.lat, ride.pickup.lng],
+  );
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    getOnlineDrivers()
-      .then((res) => {
-        const sorted = res.data
-          .map((d) => ({
-            ...d,
-            distanceKm: haversineKm(
-              ride.pickup.lat, ride.pickup.lng,
-              d.location.lat, d.location.lng,
-            ),
-          }))
-          .sort((a, b) => a.distanceKm - b.distanceKm);
-        setDrivers(sorted);
-      })
-      .catch(() => setError('Failed to load drivers'));
-  }, [ride.pickup]);
 
   const handleConfirm = async () => {
     if (!selectedId) return;

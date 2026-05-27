@@ -1,31 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useStreamStore } from '../store/useStreamStore';
-import { getActiveStreams } from '../api/streams';
 import StreamGrid from '../components/streams/StreamGrid';
 import StreamViewer from '../components/streams/StreamViewer';
 import type { Stream } from '../types';
 
 export default function Streams() {
   const streams = useStreamStore((s) => s.streams);
-  const setStreams = useStreamStore((s) => s.setStreams);
-
-  const [loading, setLoading] = useState(true);
   const [activeStream, setActiveStream] = useState<Stream | null>(null);
-
-  useEffect(() => {
-    const fetch = () =>
-      getActiveStreams()
-        .then((res) => {
-          setStreams(res.data);
-          setLoading(false);
-        })
-        .catch(() => setLoading(false));
-
-    fetch();
-    // Poll every 15s as a fallback to WebSocket stream.started/ended events
-    const interval = setInterval(fetch, 15000);
-    return () => clearInterval(interval);
-  }, [setStreams]);
 
   // Auto-close viewer if stream ends (WebSocket removes it from store)
   useEffect(() => {
@@ -43,7 +24,7 @@ export default function Streams() {
             Live Streams
           </h1>
           <p style={{ margin: '2px 0 0', fontSize: 13, color: 'var(--color-text-secondary)' }}>
-            {loading ? 'Loading…' : `${streams.length} active`}
+            {`${streams.length} active`}
           </p>
         </div>
 
@@ -80,7 +61,7 @@ export default function Streams() {
       <div style={{ flex: 1, overflow: 'auto' }}>
         <StreamGrid
           streams={streams}
-          loading={loading}
+          loading={false}
           onSelect={(stream) => setActiveStream(stream)}
         />
       </div>
