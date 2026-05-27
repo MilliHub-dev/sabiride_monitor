@@ -1,75 +1,219 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRideStore } from '../store/useRideStore';
 import { useDriverStore } from '../store/useDriverStore';
-import type { Ride } from '../types';
-import { MOCK_DRIVERS } from '../mocks/data';
+import type {
+  WsMessage,
+  WsDriversList,
+  WsPassengersList,
+  WsPassengerRequest,
+  WsRideUpdateLocation,
+  WsRideUpdateStatus,
+  WsManualMatchSuccess,
+} from '../types';
+import {
+  wsDriverToDriver,
+  wsPassengerRequestToRide,
+  wsPassengerRawToRide,
+  wsStatusToInternal,
+} from '../types';
 
-// Simulates a new incoming ride request every 45 seconds
-function simulateNewRide(): Ride {
-  const passengers = [
-    { id: 'p-sim-1', name: 'Zainab Musa', phone: '08077123456' },
-    { id: 'p-sim-2', name: 'Chidi Okafor', phone: '08033987654' },
-    { id: 'p-sim-3', name: 'Aisha Bello', phone: '08021456789' },
-  ];
-  const routes = [
-    {
-      pickup: { lat: 9.0591, lng: 7.4807, address: 'Wuse Zone 2, Abuja' },
-      destination: { lat: 9.0895, lng: 7.4837, address: 'Maitama, Abuja' },
-      fare: 1600,
-    },
-    {
-      pickup: { lat: 9.0920, lng: 7.4100, address: 'Jabi, Abuja' },
-      destination: { lat: 9.0472, lng: 7.4744, address: 'Garki, Abuja' },
-      fare: 2200,
-    },
-    {
-      pickup: { lat: 9.0264, lng: 7.5022, address: 'Asokoro, Abuja' },
-      destination: { lat: 9.0778, lng: 7.4493, address: 'Utako, Abuja' },
-      fare: 1900,
-    },
-  ];
-  const passenger = passengers[Math.floor(Math.random() * passengers.length)];
-  const route = routes[Math.floor(Math.random() * routes.length)];
-  return {
-    id: `r-sim-${Date.now()}`,
-    passenger,
-    ...route,
-    currency: 'NGN',
-    status: 'pending',
-    createdAt: new Date().toISOString(),
-  };
+const RECONNECT_DELAY = 4000;
+const HEARTBEAT_INTERVAL = 25000; // send ping every 25 s to stay alive
+const MONITOR_PATH = '/ride/monitor';
+
+// Module-level ref so non-hook code (e.g. API functions) can send actions
+let _send: ((data: object) => void) | null = null;
+
+/** Send any action to the monitor WebSocket from outside a React component */
+export function sendWsAction(action: string, params?: Record<string, unknown>) {
+  if (_send) {
+    _send({ action, ...params });
+  }
 }
 
-export function useWebSocket() {
+function useFallbackMock() {
   useEffect(() => {
-    // Simulate a driver location drift every 5 seconds
+    // Location drift every 5 s
     const locationInterval = setInterval(() => {
-      const store = useDriverStore.getState();
-      store.drivers.forEach((driver) => {
-        if (driver.status === 'offline') return;
+      useDriverStore.getState().drivers.forEach((d) => {
         useDriverStore.getState().updateLocation({
-          driverId: driver.id,
-          lat: driver.location.lat + (Math.random() - 0.5) * 0.002,
-          lng: driver.location.lng + (Math.random() - 0.5) * 0.002,
+          driverId: d.id,
+          lat: d.location.lat + (Math.random() - 0.5) * 0.002,
+          lng: d.location.lng + (Math.random() - 0.5) * 0.002,
         });
       });
     }, 5000);
 
-    // Simulate a new incoming ride every 45 seconds
+    // Simulated new ride request every 45 s
     const rideInterval = setInterval(() => {
-      useRideStore.getState().addRide(simulateNewRide());
+      const routes = [
+        { pickup: { lat: 9.0591, lng: 7.4807 }, destination: { lat: 9.0895, lng: 7.4837 }, fare: 1600 },
+        { pickup: { lat: 9.0920, lng: 7.4100 }, destination: { lat: 9.0472, lng: 7.4744 }, fare: 2200 },
+        { pickup: { lat: 9.0264, lng: 7.5022 }, destination: { lat: 9.0778, lng: 7.4493 }, fare: 1900 },
+      ];
+      const r = routes[Math.floor(Math.random() * routes.length)];
+      const id = `mock-${Date.now()}`;
+      useRideStore.getState().addRide({
+        id,
+        passenger: { id, name: `Passenger #${id.slice(-5).toUpperCase()}`, phone: '' },
+        pickup: r.pickup,
+        destination: r.destination,
+        fare: r.fare,
+        currency: 'NGN',
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      });
     }, 45000);
-
-    // Simulate a driver going online/offline occasionally
-    const statusInterval = setInterval(() => {
-      const offlineDriver = { ...MOCK_DRIVERS[6], status: 'online' as const };
-      useDriverStore.getState().addDriver(offlineDriver);
-    }, 60000);
 
     return () => {
       clearInterval(locationInterval);
       clearInterval(rideInterval);
-      clearInterval(statusInterval);
     };
   }, []);
+}
+
+export function useWebSocket() {
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const useMock = useRef(false);
+
+  useFallbackMock();
+
+  useEffect(() => {
+    function stopHeartbeat() {
+      if (heartbeatRef.current) {
+        clearInterval(heartbeatRef.current);
+        heartbeatRef.current = null;
+      }
+    }
+
+    function startHeartbeat(ws: WebSocket) {
+      stopHeartbeat();
+      heartbeatRef.current = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ action: 'ping', timestamp: new Date().toISOString() }));
+        }
+      }, HEARTBEAT_INTERVAL);
+    }
+
+    function connect() {
+      const token = localStorage.getItem('sabi_admin_token');
+      if (!token) return;
+
+      const url = `${import.meta.env.VITE_WS_URL}${MONITOR_PATH}?token=${encodeURIComponent(token)}`;
+      const ws = new WebSocket(url);
+      wsRef.current = ws;
+
+      // Expose send function globally
+      _send = (data) => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify(data));
+        }
+      };
+
+      ws.onopen = () => {
+        useMock.current = false;
+        startHeartbeat(ws);
+        // Request initial data
+        ws.send(JSON.stringify({ action: 'list_drivers' }));
+        ws.send(JSON.stringify({ action: 'list_passengers' }));
+      };
+
+      ws.onmessage = (event) => {
+        let msg: WsMessage;
+        try {
+          msg = JSON.parse(event.data) as WsMessage;
+        } catch {
+          return;
+        }
+        handleMessage(msg);
+      };
+
+      ws.onerror = () => {
+        // On error fall back to mock; will still reconnect
+        useMock.current = true;
+      };
+
+      ws.onclose = () => {
+        stopHeartbeat();
+        _send = null;
+        useMock.current = true;
+        reconnectRef.current = setTimeout(connect, RECONNECT_DELAY);
+      };
+    }
+
+    connect();
+
+    return () => {
+      wsRef.current?.close();
+      if (reconnectRef.current) clearTimeout(reconnectRef.current);
+      stopHeartbeat();
+      _send = null;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+}
+
+function handleMessage(msg: WsMessage) {
+  switch (msg.type) {
+    case 'connected':
+      break;
+
+    case 'drivers_list': {
+      const { drivers } = msg as WsDriversList;
+      useDriverStore.getState().setDrivers(drivers.map(wsDriverToDriver));
+      break;
+    }
+
+    case 'passengers_list': {
+      const { passengers } = msg as WsPassengersList;
+      useRideStore.getState().setRides(passengers.map(wsPassengerRawToRide));
+      break;
+    }
+
+    case 'passenger_request': {
+      const req = msg as WsPassengerRequest;
+      useRideStore.getState().addRide(wsPassengerRequestToRide(req));
+      break;
+    }
+
+    case 'ride_update': {
+      if ((msg as WsRideUpdateLocation | WsRideUpdateStatus).update_type === 'location') {
+        const m = msg as WsRideUpdateLocation;
+        useDriverStore.getState().updateLocation({
+          driverId: m.ride_id,
+          lat: m.location.lat,
+          lng: m.location.lng,
+        });
+      } else {
+        const m = msg as WsRideUpdateStatus;
+        useRideStore.getState().updateRide(m.ride_id, {
+          status: wsStatusToInternal(m.status),
+        });
+      }
+      break;
+    }
+
+    case 'manual_match_success': {
+      const m = msg as WsManualMatchSuccess;
+      useRideStore.getState().updateRide(m.passenger_id, { status: 'accepted' });
+      break;
+    }
+
+    case 'manual_match_sent':
+      // Driver has been notified; ride stays pending until driver accepts
+      break;
+
+    case 'pending_refreshed':
+      // Re-request full passenger list after a resync
+      sendWsAction('list_passengers');
+      break;
+
+    case 'pong':
+      break;
+
+    case 'error':
+      console.warn('[monitor ws] server error:', (msg as { type: string; message: string }).message);
+      break;
+  }
 }

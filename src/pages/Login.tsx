@@ -1,9 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { login } from '../api/auth';
 import { useAuthStore } from '../store/useAuthStore';
-
-const ADMIN_EMAIL = 'ops@sabiride.net';
-const ADMIN_PASSWORD = 'sabiride2024';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -12,15 +10,20 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      setAuth({ id: 'admin', name: 'Ops Admin', email }, 'local-admin-token');
+    setLoading(true);
+    try {
+      const res = await login(email, password);
+      setAuth(res.data.admin, res.data.token);
       navigate('/');
-    } else {
-      setError('Invalid credentials. Please try again.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Invalid credentials. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -128,6 +131,7 @@ export default function Login() {
 
           <button
             type="submit"
+            disabled={loading}
             style={{
               marginTop: 8,
               padding: '11px 0',
@@ -138,13 +142,14 @@ export default function Login() {
               fontSize: 14,
               fontWeight: 600,
               fontFamily: 'Space Grotesk, sans-serif',
-              cursor: 'pointer',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.75 : 1,
               transition: 'var(--transition)',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-primary-dark)')}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-primary)')}
+            onMouseEnter={(e) => { if (!loading) e.currentTarget.style.background = 'var(--color-primary-dark)'; }}
+            onMouseLeave={(e) => { if (!loading) e.currentTarget.style.background = 'var(--color-primary)'; }}
           >
-            Sign in to dashboard
+            {loading ? 'Signing in…' : 'Sign in to dashboard'}
           </button>
         </form>
 

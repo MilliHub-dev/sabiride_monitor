@@ -32,7 +32,11 @@
       "Bash(curl -s -o /dev/null -w \"%{http_code} /api/\\\\n\" \"https://tmp.sabirideweb.com.ng/api/\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code} /api/v1/\\\\n\" \"https://tmp.sabirideweb.com.ng/api/v1/\")",
       "Bash(python3 -c \"import sys; print\\(sys.stdin.read\\(\\)[:1000]\\)\")",
-      "Bash(curl -s \"https://tmp.sabirideweb.com.ng/?format=openapi\")"
+      "Bash(curl -s \"https://tmp.sabirideweb.com.ng/?format=openapi\")",
+      "Bash(curl -s -X POST https://tmp.sabirideweb.com.ng/api/v1/users/login/staff -H 'Content-Type: application/json' -d '{\"email\":\"test@test.com\",\"password\":\"test\"}')",
+      "Bash(curl -s -X POST https://tmp.sabirideweb.com.ng/auth/token/ -H 'Content-Type: application/json' -d '{\"username\":\"test@test.com\",\"password\":\"test\"}')",
+      "Bash(curl -s -X POST https://tmp.sabirideweb.com.ng/auth/token/ -H 'Content-Type: application/x-www-form-urlencoded' -d 'grant_type=password&username=test@test.com&password=test')",
+      "Bash(curl -s -X POST https://tmp.sabirideweb.com.ng/auth/token/ -H 'Content-Type: application/x-www-form-urlencoded' -d 'grant_type=password&username=test@test.com&password=test&client_id=test&client_secret=test')"
     ]
   }
 }

@@ -1,4 +1,5 @@
 import { MOCK_RIDES } from '../mocks/data';
+import { sendWsAction } from '../hooks/useWebSocket';
 import type { Ride } from '../types';
 
 const mock = <T>(data: T) => Promise.resolve({ data });
@@ -20,7 +21,9 @@ export const getRides = (params?: {
   if (params?.status && params.status !== 'all') {
     const s = params.status;
     list = list.filter((r) =>
-      s === 'active' ? r.status === 'active' || r.status === 'accepted' : r.status === s,
+      s === 'active'
+        ? r.status === 'active' || r.status === 'accepted'
+        : r.status === s,
     );
   }
   if (params?.search) {
@@ -32,7 +35,12 @@ export const getRides = (params?: {
         r.destination.address?.toLowerCase().includes(q),
     );
   }
-  return mock<RidesResponse>({ data: list, total: list.length, page: params?.page ?? 1, limit: params?.limit ?? 20 });
+  return mock<RidesResponse>({
+    data: list,
+    total: list.length,
+    page: params?.page ?? 1,
+    limit: params?.limit ?? 20,
+  });
 };
 
 export const getPendingRides = () =>
@@ -44,5 +52,21 @@ export const getLiveRides = () =>
 export const getRide = (id: string) =>
   mock<Ride>(MOCK_RIDES.find((r) => r.id === id) ?? MOCK_RIDES[0]);
 
-export const assignDriver = (_rideId: string, _driverId: string) =>
-  mock<{ success: boolean }>({ success: true });
+/**
+ * Manually assign a driver to a passenger request.
+ * Sends a `manual_match` action over the monitor WebSocket.
+ * Falls back to a resolved mock when WS is not connected (dev/mock mode).
+ */
+export const assignDriver = (
+  passengerId: string,
+  driverId: string,
+  proposedFare?: number,
+): Promise<{ data: { success: boolean } }> => {
+  sendWsAction('manual_match', {
+    passenger_id: passengerId,
+    driver_id: driverId,
+    ...(proposedFare !== undefined && { proposed_fare: proposedFare }),
+  });
+  // Resolve immediately; real confirmation arrives via `manual_match_success` WS event
+  return Promise.resolve({ data: { success: true } });
+};
