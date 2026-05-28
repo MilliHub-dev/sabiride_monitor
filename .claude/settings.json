@@ -43,7 +43,8 @@
       "Bash(curl -sv -X POST \"https://tmp.sabirideweb.com.ng/api/v1/users/login/staff\" -H \"Content-Type: application/json\" -d '{\"email\":\"dev@sabiride.net\",\"password\":\"test\"}')",
       "Bash(curl -s -D - -X OPTIONS \"https://tmp.sabirideweb.com.ng/api/v1/users/login/staff\" -H \"Origin: https://monitor.sabiride.net\" -H \"Access-Control-Request-Method: POST\" -H \"Access-Control-Request-Headers: Content-Type,Authorization\")",
       "Bash(curl -s -X POST \"https://tmp.sabirideweb.com.ng/api/v1/users/login/staff\" -H \"Content-Type: application/json\" -d '{\"email\":\"dev@sabiride.net\",\"password\":\"wrongpass\"}')",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X POST \"https://tmp.sabirideweb.com.ng/api/v1/users/login/staff\" -H \"Content-Type: application/json\" -d '{\"email\":\"dev@sabiride.net\",\"password\":\"wrongpass\"}')"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" -X POST \"https://tmp.sabirideweb.com.ng/api/v1/users/login/staff\" -H \"Content-Type: application/json\" -d '{\"email\":\"dev@sabiride.net\",\"password\":\"wrongpass\"}')",
+      "Bash(curl -s -w \"\\\\nHTTP_STATUS:%{http_code}\" -X POST \"https://tmp.sabirideweb.com.ng/api/v1/users/login/staff\" -H \"Content-Type: application/json\" -d '{\"email\":\"developer@tmp.sabirideweb.com.ng\",\"password\":\"Admin@12345\"}')"
     ]
   }
 }

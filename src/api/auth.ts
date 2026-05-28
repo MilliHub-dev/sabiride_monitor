@@ -2,22 +2,16 @@ import axios from 'axios';
 import client from './client';
 import type { Admin } from '../types';
 
-// Server wraps all responses in this envelope
-interface ApiEnvelope<T> {
-  message: string;
-  data: T;
-  status: boolean;
-  status_code: number;
-}
-
-interface StaffLoginData {
+interface StaffLoginResponse {
   access_token: string;
-  user: {
-    id: string;
-    email: string;
-    first_name: string;
-    last_name: string;
-  };
+  refresh_token: string;
+  staff_id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: string;
+  is_active: boolean;
+  new_staff: boolean;
 }
 
 export interface LoginResponse {
@@ -31,7 +25,7 @@ export const login = async (
 ): Promise<{ data: LoginResponse }> => {
   let res;
   try {
-    res = await client.post<ApiEnvelope<StaffLoginData>>(
+    res = await client.post<StaffLoginResponse>(
       '/api/v1/users/login/staff',
       { email, password },
     );
@@ -42,19 +36,15 @@ export const login = async (
     throw new Error('Could not reach the server. Check your connection.');
   }
 
-  if (!res.data.status) {
-    throw new Error(res.data.message || 'Login failed');
-  }
-
-  const { access_token, user } = res.data.data;
+  const { access_token, staff_id, first_name, last_name, email: userEmail } = res.data;
 
   return {
     data: {
       token: access_token,
       admin: {
-        id: user.id,
-        email: user.email,
-        name: `${user.first_name} ${user.last_name}`.trim(),
+        id: staff_id,
+        email: userEmail,
+        name: `${first_name} ${last_name}`.trim(),
       },
     },
   };
