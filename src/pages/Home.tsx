@@ -172,7 +172,11 @@ export default function Home() {
           drivers={filteredDrivers}
           pendingRides={pendingRides}
           selectedDriverId={selectedDriverId}
-          onDriverClick={(id) => setSelectedDriver(id === selectedDriverId ? null : id)}
+          onDriverClick={(id) => {
+            setSelectedDriver(id === selectedDriverId ? null : id);
+            const driver = filteredDrivers.find((d) => d.id === id);
+            if (driver) setPanTarget({ lat: driver.location.lat, lng: driver.location.lng });
+          }}
           searchQuery={searchQuery}
           onlineOnly={onlineOnly}
         />

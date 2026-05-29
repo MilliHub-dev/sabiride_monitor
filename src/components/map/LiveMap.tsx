@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
 import type { Ride, Driver } from '../../types';
 import DriverPin from './DriverPin';
@@ -46,13 +46,15 @@ export default function LiveMap({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? '',
   });
 
-  const onLoad = useCallback(
-    (map: google.maps.Map) => {
-      mapRef.current = map;
-      if (panTarget) map.panTo(panTarget);
-    },
-    [panTarget],
-  );
+  const onLoad = useCallback((map: google.maps.Map) => {
+    mapRef.current = map;
+  }, []);
+
+  useEffect(() => {
+    if (mapRef.current && panTarget) {
+      mapRef.current.panTo(panTarget);
+    }
+  }, [panTarget]);
 
   if (!isLoaded) {
     return (
