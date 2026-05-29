@@ -19,6 +19,7 @@ import {
 
 const RECONNECT_DELAY = 4000;
 const HEARTBEAT_INTERVAL = 25000;
+const DRIVER_REFRESH_INTERVAL = 30000;
 const MONITOR_PATH = '/ride/monitor';
 
 // Module-level ref so non-hook code (e.g. API functions) can send actions
@@ -35,12 +36,20 @@ export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const driverRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     function stopHeartbeat() {
       if (heartbeatRef.current) {
         clearInterval(heartbeatRef.current);
         heartbeatRef.current = null;
+      }
+    }
+
+    function stopDriverRefresh() {
+      if (driverRefreshRef.current) {
+        clearInterval(driverRefreshRef.current);
+        driverRefreshRef.current = null;
       }
     }
 
@@ -51,6 +60,15 @@ export function useWebSocket() {
           ws.send(JSON.stringify({ action: 'ping', timestamp: new Date().toISOString() }));
         }
       }, HEARTBEAT_INTERVAL);
+    }
+
+    function startDriverRefresh(ws: WebSocket) {
+      stopDriverRefresh();
+      driverRefreshRef.current = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ action: 'list_drivers' }));
+        }
+      }, DRIVER_REFRESH_INTERVAL);
     }
 
     function connect() {
@@ -68,8 +86,8 @@ export function useWebSocket() {
       };
 
       ws.onopen = () => {
-
         startHeartbeat(ws);
+        startDriverRefresh(ws);
         ws.send(JSON.stringify({ action: 'list_drivers' }));
         ws.send(JSON.stringify({ action: 'list_passengers' }));
       };
@@ -90,8 +108,8 @@ export function useWebSocket() {
 
       ws.onclose = () => {
         stopHeartbeat();
+        stopDriverRefresh();
         _send = null;
-
         reconnectRef.current = setTimeout(connect, RECONNECT_DELAY);
       };
     }
@@ -102,6 +120,7 @@ export function useWebSocket() {
       wsRef.current?.close();
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
       stopHeartbeat();
+      stopDriverRefresh();
       _send = null;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
