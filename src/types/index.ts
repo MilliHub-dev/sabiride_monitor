@@ -16,7 +16,7 @@ export interface Driver {
   id: string;
   name: string;
   phone: string;
-  state: string;
+  state?: string;
   status: 'online' | 'busy' | 'offline';
   location: Location;
   distanceKm?: number;
@@ -170,7 +170,6 @@ export function wsDriverToDriver(raw: WsDriverRaw): Driver {
     id: raw.driver_id,
     name,
     phone: raw.phone_number,
-    state: 'FCT',
     status: 'online',
     vehicleType: raw.driver_type === 2 ? 'bike' : 'car',
     rating: parseFloat(raw.rating) || 0,

@@ -24,11 +24,14 @@ const MONITOR_PATH = '/ride/monitor';
 
 // Module-level ref so non-hook code (e.g. API functions) can send actions
 let _send: ((data: object) => void) | null = null;
+let _isConnected = false;
 
 /** Send any action to the monitor WebSocket from outside a React component */
 export function sendWsAction(action: string, params?: Record<string, unknown>) {
-  if (_send) {
+  if (_send && _isConnected) {
     _send({ action, ...params });
+  } else {
+    console.warn('[monitor ws] Cannot send action: WebSocket not connected');
   }
 }
 
@@ -86,6 +89,7 @@ export function useWebSocket() {
       };
 
       ws.onopen = () => {
+        _isConnected = true;
         startHeartbeat(ws);
         startDriverRefresh(ws);
         ws.send(JSON.stringify({ action: 'list_drivers' }));
@@ -93,20 +97,28 @@ export function useWebSocket() {
       };
 
       ws.onmessage = (event) => {
-        let msg: WsMessage;
         try {
-          msg = JSON.parse(event.data) as WsMessage;
-        } catch {
-          return;
+          const data = JSON.parse(event.data);
+          if (!data || typeof data !== 'object') {
+            console.warn('[monitor ws] Invalid message format:', event.data);
+            return;
+          }
+          if (!data.type) {
+            console.warn('[monitor ws] Message missing type field:', data);
+            return;
+          }
+          handleMessage(data as WsMessage);
+        } catch (err) {
+          console.error('[monitor ws] Failed to parse message:', err, event.data);
         }
-        handleMessage(msg);
       };
 
-      ws.onerror = () => {
-
+      ws.onerror = (error) => {
+        console.error('[monitor ws] WebSocket error:', error);
       };
 
       ws.onclose = () => {
+        _isConnected = false;
         stopHeartbeat();
         stopDriverRefresh();
         _send = null;

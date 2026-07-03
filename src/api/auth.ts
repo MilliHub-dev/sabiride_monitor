@@ -16,6 +16,7 @@ interface StaffLoginResponse {
 
 export interface LoginResponse {
   token: string;
+  refreshToken: string;
   admin: Admin;
 }
 
@@ -36,11 +37,12 @@ export const login = async (
     throw new Error('Could not reach the server. Check your connection.');
   }
 
-  const { access_token, staff_id, first_name, last_name, email: userEmail } = res.data;
+  const { access_token, refresh_token, staff_id, first_name, last_name, email: userEmail } = res.data;
 
   return {
     data: {
       token: access_token,
+      refreshToken: refresh_token,
       admin: {
         id: staff_id,
         email: userEmail,

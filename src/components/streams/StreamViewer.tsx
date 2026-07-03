@@ -155,7 +155,7 @@ export default function StreamViewer({ stream, onClose }: Props) {
               {stream.driver.name}
             </div>
             <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
-              {stream.locationLabel ?? stream.driver.state}
+              {stream.locationLabel ?? (stream.driver.state || 'Unknown')}
             </div>
           </div>
         </div>

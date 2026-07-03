@@ -4,19 +4,23 @@ import type { Ride } from '../types';
 interface RideState {
   rides: Ride[];
   pendingRides: Ride[];
+  ridesLoaded: boolean;
   setRides: (rides: Ride[]) => void;
   addRide: (ride: Ride) => void;
   updateRide: (rideId: string, updates: Partial<Ride>) => void;
   removeRide: (rideId: string) => void;
+  setRidesLoaded: (loaded: boolean) => void;
 }
 
 export const useRideStore = create<RideState>((set) => ({
   rides: [],
   pendingRides: [],
+  ridesLoaded: false,
   setRides: (rides) =>
     set({
       rides,
       pendingRides: rides.filter((r) => r.status === 'pending'),
+      ridesLoaded: true,
     }),
   addRide: (ride) =>
     set((state) => {
@@ -44,4 +48,5 @@ export const useRideStore = create<RideState>((set) => ({
         pendingRides: rides.filter((r) => r.status === 'pending'),
       };
     }),
+  setRidesLoaded: (loaded) => set({ ridesLoaded: loaded }),
 }));

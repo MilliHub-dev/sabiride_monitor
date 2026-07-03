@@ -18,7 +18,7 @@ export default function Login() {
     setLoading(true);
     try {
       const res = await login(email, password);
-      setAuth(res.data.admin, res.data.token);
+      setAuth(res.data.admin, res.data.token, res.data.refreshToken);
       navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Invalid credentials. Please try again.');

@@ -114,7 +114,7 @@ export default function StreamCard({ stream, onClick }: Props) {
           {stream.driver.name}
         </div>
         <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
-          {stream.locationLabel ?? stream.driver.state}
+          {stream.locationLabel ?? (stream.driver.state || 'Unknown')}
           {stream.driver.vehicleType && (
             <span style={{ marginLeft: 6, color: 'var(--color-text-muted)' }}>
               · {stream.driver.vehicleType}

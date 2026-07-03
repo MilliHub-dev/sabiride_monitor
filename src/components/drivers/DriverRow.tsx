@@ -70,7 +70,7 @@ export default function DriverRow({ driver, isSelected, onClick }: Props) {
           {driver.name}
         </div>
         <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 1 }}>
-          {driver.state}
+          {driver.state || 'Unknown'}
           {driver.distanceKm != null && (
             <> · {formatDistance(driver.distanceKm)}</>
           )}

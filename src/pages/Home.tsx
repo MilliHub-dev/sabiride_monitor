@@ -17,9 +17,11 @@ export default function Home() {
   const drivers = useDriverStore((s) => s.drivers);
   const selectedDriverId = useDriverStore((s) => s.selectedDriverId);
   const setSelectedDriver = useDriverStore((s) => s.setSelectedDriver);
+  const driversLoaded = useDriverStore((s) => s.driversLoaded);
 
   const pendingRides = useRideStore((s) => s.pendingRides);
   const updateRide = useRideStore((s) => s.updateRide);
+  const ridesLoaded = useRideStore((s) => s.ridesLoaded);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedState, setSelectedState] = useState('');
@@ -42,6 +44,28 @@ export default function Home() {
     : drivers;
 
   const visiblePopupRides = pendingRides.filter((r) => !dismissedRideIds.has(r.id));
+
+  // Show loading state if data hasn't loaded yet
+  if (!driversLoaded || !ridesLoaded) {
+    return (
+      <div
+        style={{
+          height: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--color-bg)',
+        }}
+      >
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 32, marginBottom: 16 }}>🔄</div>
+          <div style={{ fontSize: 14, color: 'var(--color-text-secondary)' }}>
+            Loading live data...
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const handleDismiss = (rideId: string) =>
     setDismissedRideIds((prev) => new Set([...prev, rideId]));
