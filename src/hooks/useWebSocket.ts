@@ -145,7 +145,10 @@ function handleMessage(msg: WsMessage) {
 
     case 'drivers_list': {
       const { drivers } = msg as WsDriversList;
-      useDriverStore.getState().setDrivers(drivers.map(wsDriverToDriver));
+      console.log('[monitor ws] Received drivers_list:', drivers);
+      const mappedDrivers = drivers.map(wsDriverToDriver);
+      console.log('[monitor ws] Mapped drivers:', mappedDrivers);
+      useDriverStore.getState().setDrivers(mappedDrivers);
       break;
     }
 

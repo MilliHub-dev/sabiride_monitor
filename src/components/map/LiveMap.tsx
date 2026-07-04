@@ -43,6 +43,8 @@ export default function LiveMap({
   const mapRef = useRef<google.maps.Map | null>(null);
   const [center, setCenter] = useState<google.maps.LatLngLiteral>(ABUJA);
 
+  console.log('[LiveMap] Rendering with drivers:', drivers);
+
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? '',
   });
