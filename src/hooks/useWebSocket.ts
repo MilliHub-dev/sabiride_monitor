@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useRideStore } from '../store/useRideStore';
 import { useDriverStore } from '../store/useDriverStore';
-import { MOCK_DRIVERS, MOCK_RIDES } from '../mocks/data';
 import type {
   WsMessage,
   WsDriversList,
@@ -21,7 +20,6 @@ import {
 const RECONNECT_DELAY = 4000;
 const HEARTBEAT_INTERVAL = 25000;
 const DRIVER_REFRESH_INTERVAL = 30000;
-const CONNECTION_TIMEOUT = 5000;
 const MONITOR_PATH = '/ride/monitor';
 
 // Module-level ref so non-hook code (e.g. API functions) can send actions
@@ -42,8 +40,6 @@ export function useWebSocket() {
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const driverRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hasReceivedDataRef = useRef(false);
 
   useEffect(() => {
     function stopHeartbeat() {
@@ -78,13 +74,6 @@ export function useWebSocket() {
       }, DRIVER_REFRESH_INTERVAL);
     }
 
-    function loadMockData() {
-      // Fallback to mock data if WebSocket fails
-      console.warn('[monitor ws] Connection timeout, loading mock data');
-      useDriverStore.getState().setDrivers(MOCK_DRIVERS);
-      useRideStore.getState().setRides(MOCK_RIDES);
-    }
-
     function connect() {
       const token = localStorage.getItem('sabi_admin_token');
       if (!token) return;
@@ -99,13 +88,6 @@ export function useWebSocket() {
         }
       };
 
-      // Set timeout to load mock data if no data received
-      timeoutRef.current = setTimeout(() => {
-        if (!hasReceivedDataRef.current) {
-          loadMockData();
-        }
-      }, CONNECTION_TIMEOUT);
-
       ws.onopen = () => {
         _isConnected = true;
         startHeartbeat(ws);
@@ -115,11 +97,6 @@ export function useWebSocket() {
       };
 
       ws.onmessage = (event) => {
-        hasReceivedDataRef.current = true;
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-          timeoutRef.current = null;
-        }
         try {
           const data = JSON.parse(event.data);
           if (!data || typeof data !== 'object') {
@@ -138,9 +115,6 @@ export function useWebSocket() {
 
       ws.onerror = (error) => {
         console.error('[monitor ws] WebSocket error:', error);
-        if (!hasReceivedDataRef.current) {
-          loadMockData();
-        }
       };
 
       ws.onclose = () => {
@@ -157,7 +131,6 @@ export function useWebSocket() {
     return () => {
       wsRef.current?.close();
       if (reconnectRef.current) clearTimeout(reconnectRef.current);
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       stopHeartbeat();
       stopDriverRefresh();
       _send = null;

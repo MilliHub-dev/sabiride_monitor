@@ -4,20 +4,17 @@ import type { Driver } from '../types';
 interface DriverState {
   drivers: Driver[];
   selectedDriverId: string | null;
-  driversLoaded: boolean;
   setDrivers: (drivers: Driver[]) => void;
   addDriver: (driver: Driver) => void;
   removeDriver: (driverId: string) => void;
   updateLocation: (payload: { driverId: string; lat: number; lng: number }) => void;
   setSelectedDriver: (driverId: string | null) => void;
-  setDriversLoaded: (loaded: boolean) => void;
 }
 
 export const useDriverStore = create<DriverState>((set) => ({
   drivers: [],
   selectedDriverId: null,
-  driversLoaded: false,
-  setDrivers: (drivers) => set({ drivers, driversLoaded: true }),
+  setDrivers: (drivers) => set({ drivers }),
   addDriver: (driver) =>
     set((state) => ({
       drivers: state.drivers.some((d) => d.id === driver.id)
@@ -35,5 +32,4 @@ export const useDriverStore = create<DriverState>((set) => ({
       ),
     })),
   setSelectedDriver: (driverId) => set({ selectedDriverId: driverId }),
-  setDriversLoaded: (loaded) => set({ driversLoaded: loaded }),
 }));
