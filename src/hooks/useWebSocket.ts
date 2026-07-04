@@ -76,9 +76,13 @@ export function useWebSocket() {
 
     function connect() {
       const token = localStorage.getItem('sabi_admin_token');
-      if (!token) return;
+      if (!token) {
+        console.warn('[monitor ws] No token found, skipping connection');
+        return;
+      }
 
       const url = `${import.meta.env.VITE_WS_URL}${MONITOR_PATH}?token=${encodeURIComponent(token)}`;
+      console.log('[monitor ws] Connecting to:', url);
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
@@ -89,6 +93,7 @@ export function useWebSocket() {
       };
 
       ws.onopen = () => {
+        console.log('[monitor ws] Connected successfully');
         _isConnected = true;
         startHeartbeat(ws);
         startDriverRefresh(ws);
@@ -97,6 +102,7 @@ export function useWebSocket() {
       };
 
       ws.onmessage = (event) => {
+        console.log('[monitor ws] Received message:', event.data);
         try {
           const data = JSON.parse(event.data);
           if (!data || typeof data !== 'object') {
@@ -117,7 +123,8 @@ export function useWebSocket() {
         console.error('[monitor ws] WebSocket error:', error);
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
+        console.log('[monitor ws] Connection closed:', event.code, event.reason);
         _isConnected = false;
         stopHeartbeat();
         stopDriverRefresh();
