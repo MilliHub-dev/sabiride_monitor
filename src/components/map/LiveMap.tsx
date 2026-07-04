@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
 import type { Ride, Driver } from '../../types';
 import DriverPin from './DriverPin';
@@ -41,14 +41,31 @@ export default function LiveMap({
   panTarget,
 }: Props) {
   const mapRef = useRef<google.maps.Map | null>(null);
+  const [center, setCenter] = useState<google.maps.LatLngLiteral>(ABUJA);
 
   const { isLoaded } = useJsApiLoader({
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? '',
   });
 
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setCenter({ lat: latitude, lng: longitude });
+        },
+        (error) => {
+          console.warn('Geolocation error:', error);
+          // Fallback to Abuja if geolocation fails
+        },
+      );
+    }
+  }, []);
+
   const onLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
-  }, []);
+    map.panTo(center);
+  }, [center]);
 
   useEffect(() => {
     if (mapRef.current && panTarget) {
@@ -77,7 +94,7 @@ export default function LiveMap({
   return (
     <GoogleMap
       mapContainerStyle={{ flex: 1, height: '100%' }}
-      center={ABUJA}
+      center={center}
       zoom={13}
       options={MAP_OPTIONS}
       onLoad={onLoad}
