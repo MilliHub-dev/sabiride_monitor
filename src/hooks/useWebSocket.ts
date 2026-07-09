@@ -25,6 +25,7 @@ const MONITOR_PATH = '/ride/monitor';
 // Module-level ref so non-hook code (e.g. API functions) can send actions
 let _send: ((data: object) => void) | null = null;
 let _isConnected = false;
+let _authFailed = false;
 
 /** Send any action to the monitor WebSocket from outside a React component */
 export function sendWsAction(action: string, params?: Record<string, unknown>) {
@@ -75,6 +76,11 @@ export function useWebSocket() {
     }
 
     function connect() {
+      if (_authFailed) {
+        console.log('[monitor ws] Skipping connection due to auth failure');
+        return;
+      }
+
       const token = localStorage.getItem('sabi_admin_token');
       if (!token) {
         console.warn('[monitor ws] No token found, skipping connection');
@@ -217,5 +223,18 @@ function handleMessage(msg: WsMessage) {
     case 'error':
       console.error('[monitor ws] Server error:', (msg as { type: string; message: string }).message);
       break;
+
+    case 'response': {
+      const response = msg as { type: 'response'; response_type: string; status: string; message: string; error_code?: string };
+      if (response.response_type === 'error' && response.error_code === 'CONNECTION_REJECTED_4001') {
+        console.error('[monitor ws] Authentication failed:', response.message);
+        _authFailed = true;
+        // Clear invalid token and redirect to login
+        localStorage.removeItem('sabi_admin_token');
+        localStorage.removeItem('sabi_admin_refresh_token');
+        window.location.href = '/login';
+      }
+      break;
+    }
   }
 }

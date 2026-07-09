@@ -149,6 +149,15 @@ export interface WsError {
   message: string;
 }
 
+export interface WsResponse {
+  type: 'response';
+  response_type: 'error' | 'success';
+  status: 'error' | 'success';
+  message: string;
+  error_code?: string;
+  data: unknown;
+}
+
 export type WsMessage =
   | WsPassengerRequest
   | WsRideUpdateLocation
@@ -158,6 +167,7 @@ export type WsMessage =
   | WsManualMatchSuccess
   | WsManualMatchSent
   | WsError
+  | WsResponse
   | { type: 'connected' }
   | { type: 'pong'; timestamp?: string }
   | { type: 'pending_refreshed'; count?: number };
