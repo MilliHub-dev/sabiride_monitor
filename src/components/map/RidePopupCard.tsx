@@ -76,8 +76,8 @@ function RideCard({
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
         <Row label="Passenger" value={ride.passenger.name} />
-        <Row label="From" value={ride.pickup.address ?? '—'} />
-        <Row label="To" value={ride.destination.address ?? '—'} />
+        <Row label="From" value={ride.pickup.address ?? `${ride.pickup.lat.toFixed(4)}, ${ride.pickup.lng.toFixed(4)}`} />
+        <Row label="To" value={ride.destination.address ?? `${ride.destination.lat.toFixed(4)}, ${ride.destination.lng.toFixed(4)}`} />
         <Row label="Fare" value={formatNaira(ride.fare)} highlight />
       </div>
 

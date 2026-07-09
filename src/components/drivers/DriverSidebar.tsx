@@ -41,7 +41,7 @@ export default function DriverSidebar({
     }
 
     // Only calculate distance and sort by it if there's a location reference (pending ride)
-    // Otherwise sort by name
+    // Otherwise sort by name and don't show distance
     if (pendingRides.length > 0) {
       list = list
         .map((d) => ({
@@ -50,7 +50,8 @@ export default function DriverSidebar({
         }))
         .sort((a, b) => a.distanceKm - b.distanceKm);
     } else {
-      list = list.sort((a, b) => a.name.localeCompare(b.name));
+      // Remove distanceKm when no pending ride to avoid showing incorrect distances
+      list = list.map((d) => ({ ...d, distanceKm: undefined })).sort((a, b) => a.name.localeCompare(b.name));
     }
 
     return list;
