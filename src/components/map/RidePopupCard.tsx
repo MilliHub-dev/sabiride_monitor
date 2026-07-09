@@ -2,6 +2,28 @@ import { useEffect, useState } from 'react';
 import type { Ride } from '../../types';
 import { formatNaira, formatElapsed } from '../../utils/format';
 
+// Simple coordinate formatter as fallback
+function formatCoords(lat: number, lng: number): string {
+  return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+}
+
+// Reverse geocode using Google Maps Geocoding API
+async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  try {
+    const response = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}`
+    );
+    const data = await response.json();
+    if (data.results && data.results.length > 0) {
+      // Return the first formatted address
+      return data.results[0].formatted_address;
+    }
+  } catch (error) {
+    console.error('Reverse geocoding failed:', error);
+  }
+  return formatCoords(lat, lng);
+}
+
 interface Props {
   rides: Ride[];
   onAssign: (ride: Ride) => void;
@@ -18,12 +40,24 @@ function RideCard({
   onDismiss: () => void;
 }) {
   const [elapsed, setElapsed] = useState(ride.unacceptedSeconds ?? 0);
+  const [pickupAddress, setPickupAddress] = useState(ride.pickup.address);
+  const [destinationAddress, setDestinationAddress] = useState(ride.destination.address);
   const isUrgent = elapsed >= 120;
 
   useEffect(() => {
     const t = setInterval(() => setElapsed((s) => s + 1), 1000);
     return () => clearInterval(t);
   }, []);
+
+  // Reverse geocode addresses if not provided
+  useEffect(() => {
+    if (!ride.pickup.address) {
+      reverseGeocode(ride.pickup.lat, ride.pickup.lng).then(setPickupAddress);
+    }
+    if (!ride.destination.address) {
+      reverseGeocode(ride.destination.lat, ride.destination.lng).then(setDestinationAddress);
+    }
+  }, [ride]);
 
   return (
     <div
@@ -76,8 +110,8 @@ function RideCard({
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
         <Row label="Passenger" value={ride.passenger.name} />
-        <Row label="From" value={ride.pickup.address ?? `${ride.pickup.lat.toFixed(4)}, ${ride.pickup.lng.toFixed(4)}`} />
-        <Row label="To" value={ride.destination.address ?? `${ride.destination.lat.toFixed(4)}, ${ride.destination.lng.toFixed(4)}`} />
+        <Row label="From" value={pickupAddress ?? formatCoords(ride.pickup.lat, ride.pickup.lng)} />
+        <Row label="To" value={destinationAddress ?? formatCoords(ride.destination.lat, ride.destination.lng)} />
         <Row label="Fare" value={formatNaira(ride.fare)} highlight />
       </div>
 
