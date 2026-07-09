@@ -146,13 +146,15 @@ export function useWebSocket() {
 }
 
 function handleMessage(msg: WsMessage) {
+  console.log('[monitor ws] Handling message type:', msg.type);
   switch (msg.type) {
     case 'connected':
+      console.log('[monitor ws] Server confirmed connection');
       break;
 
     case 'drivers_list': {
       const { drivers } = msg as WsDriversList;
-      console.log('[monitor ws] Received drivers_list:', drivers);
+      console.log('[monitor ws] Received drivers_list with', drivers.length, 'drivers:', drivers);
       const mappedDrivers = drivers.map(wsDriverToDriver);
       console.log('[monitor ws] Mapped drivers:', mappedDrivers);
       useDriverStore.getState().setDrivers(mappedDrivers);
@@ -161,12 +163,14 @@ function handleMessage(msg: WsMessage) {
 
     case 'passengers_list': {
       const { passengers } = msg as WsPassengersList;
+      console.log('[monitor ws] Received passengers_list with', passengers.length, 'passengers');
       useRideStore.getState().setRides(passengers.map(wsPassengerRawToRide));
       break;
     }
 
     case 'passenger_request': {
       const req = msg as WsPassengerRequest;
+      console.log('[monitor ws] New passenger request:', req.passenger_id);
       useRideStore.getState().addRide(wsPassengerRequestToRide(req));
       break;
     }
@@ -174,6 +178,7 @@ function handleMessage(msg: WsMessage) {
     case 'ride_update': {
       if ((msg as WsRideUpdateLocation | WsRideUpdateStatus).update_type === 'location') {
         const m = msg as WsRideUpdateLocation;
+        console.log('[monitor ws] Ride location update for:', m.ride_id);
         useDriverStore.getState().updateLocation({
           driverId: m.ride_id,
           lat: m.location.lat,
@@ -181,6 +186,7 @@ function handleMessage(msg: WsMessage) {
         });
       } else {
         const m = msg as WsRideUpdateStatus;
+        console.log('[monitor ws] Ride status update for:', m.ride_id, 'status:', m.status);
         useRideStore.getState().updateRide(m.ride_id, {
           status: wsStatusToInternal(m.status),
         });
@@ -190,22 +196,26 @@ function handleMessage(msg: WsMessage) {
 
     case 'manual_match_success': {
       const m = msg as WsManualMatchSuccess;
+      console.log('[monitor ws] Manual match success:', m.passenger_id, 'to', m.driver_id);
       useRideStore.getState().updateRide(m.passenger_id, { status: 'accepted' });
       break;
     }
 
     case 'manual_match_sent':
+      console.log('[monitor ws] Manual match sent');
       break;
 
     case 'pending_refreshed':
+      console.log('[monitor ws] Pending rides refreshed, requesting list_passengers');
       sendWsAction('list_passengers');
       break;
 
     case 'pong':
+      console.log('[monitor ws] Pong received');
       break;
 
     case 'error':
-      console.warn('[monitor ws] server error:', (msg as { type: string; message: string }).message);
+      console.error('[monitor ws] Server error:', (msg as { type: string; message: string }).message);
       break;
   }
 }
