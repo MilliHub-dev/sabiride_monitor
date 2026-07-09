@@ -31,12 +31,7 @@ export default function DriverSidebar({
   }, [pendingRides]);
 
   const displayed = useMemo(() => {
-    let list = drivers
-      .filter((d) => d.status !== 'offline')
-      .map((d) => ({
-        ...d,
-        distanceKm: haversineKm(refPoint.lat, refPoint.lng, d.location.lat, d.location.lng),
-      }));
+    let list = drivers.filter((d) => d.status !== 'offline');
 
     if (onlineOnly || filter === 'online') list = list.filter((d) => d.status === 'online');
     if (filter === 'busy') list = list.filter((d) => d.status === 'busy');
@@ -45,8 +40,21 @@ export default function DriverSidebar({
       list = list.filter((d) => d.name.toLowerCase().includes(q));
     }
 
-    return list.sort((a, b) => a.distanceKm - b.distanceKm);
-  }, [drivers, refPoint, filter, onlineOnly, searchQuery]);
+    // Only calculate distance and sort by it if there's a location reference (pending ride)
+    // Otherwise sort by name
+    if (pendingRides.length > 0) {
+      list = list
+        .map((d) => ({
+          ...d,
+          distanceKm: haversineKm(refPoint.lat, refPoint.lng, d.location.lat, d.location.lng),
+        }))
+        .sort((a, b) => a.distanceKm - b.distanceKm);
+    } else {
+      list = list.sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    return list;
+  }, [drivers, refPoint, filter, onlineOnly, searchQuery, pendingRides]);
 
   const chips: { label: string; value: FilterStatus }[] = [
     { label: 'All', value: 'all' },
