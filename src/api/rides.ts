@@ -79,6 +79,8 @@ export const assignDriver = (
     driver_id: driverId,
     ...(proposedFare !== undefined && { proposed_fare: proposedFare }),
   });
-  // Resolve immediately; real confirmation arrives via `manual_match_success` WS event
+  // Confirmation arrives asynchronously as a `manual_match_sent` message, which
+  // the socket handler uses to move the row. (An earlier comment here named
+  // `manual_match_success`, which the server has never sent.)
   return Promise.resolve({ data: { success: true } });
 };

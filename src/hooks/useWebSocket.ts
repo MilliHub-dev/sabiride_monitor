@@ -8,7 +8,7 @@ import type {
   WsPassengerRequest,
   WsRideUpdateLocation,
   WsRideUpdateStatus,
-  WsManualMatchSuccess,
+  WsManualMatchSent,
 } from '../types';
 import {
   wsDriverToDriver,
@@ -16,6 +16,10 @@ import {
   wsPassengerRawToRide,
   wsStatusToInternal,
 } from '../types';
+
+// Close codes the monitoring consumer uses to refuse a connection outright.
+const WS_CLOSE_UNAUTHENTICATED = 4001;
+const WS_CLOSE_NOT_STAFF = 4003;
 
 const RECONNECT_DELAY = 4000;
 const HEARTBEAT_INTERVAL = 25000;
@@ -135,6 +139,23 @@ export function useWebSocket() {
         stopHeartbeat();
         stopDriverRefresh();
         _send = null;
+
+        // 4001 (not authenticated) and 4003 (not staff) are deliberate
+        // refusals - retrying cannot change the outcome. Reconnecting anyway
+        // meant a non-staff account hammered the server every 4 seconds for as
+        // long as the tab stayed open.
+        if (
+          event.code === WS_CLOSE_UNAUTHENTICATED ||
+          event.code === WS_CLOSE_NOT_STAFF
+        ) {
+          console.error(
+            '[monitor ws] Server refused the connection; not retrying.',
+            event.code,
+          );
+          _authFailed = true;
+          return;
+        }
+
         reconnectRef.current = setTimeout(connect, RECONNECT_DELAY);
       };
     }
@@ -184,12 +205,26 @@ function handleMessage(msg: WsMessage) {
     case 'ride_update': {
       if ((msg as WsRideUpdateLocation | WsRideUpdateStatus).update_type === 'location') {
         const m = msg as WsRideUpdateLocation;
-        console.log('[monitor ws] Ride location update for:', m.ride_id);
-        useDriverStore.getState().updateLocation({
-          driverId: m.ride_id,
-          lat: m.location.lat,
-          lng: m.location.lng,
-        });
+        // This used to pass `m.ride_id` as the driver id. The store matches on
+        // driver id, so nothing ever matched and every live position was
+        // dropped - pins only moved on the 30s list_drivers poll. The server
+        // now names the mover explicitly.
+        if (m.profile_type === 'driver' && m.profile_id) {
+          console.log('[monitor ws] Driver location update:', m.profile_id);
+          useDriverStore.getState().updateLocation({
+            driverId: m.profile_id,
+            lat: m.location.lat,
+            lng: m.location.lng,
+          });
+        } else if (!m.profile_id) {
+          // Older server build: it cannot say whose position this is, and
+          // guessing would move the wrong pin. The periodic driver refresh
+          // keeps the map roughly current in the meantime.
+          console.warn(
+            '[monitor ws] Location update without profile_id - ignoring',
+            m.ride_id,
+          );
+        }
       } else {
         const m = msg as WsRideUpdateStatus;
         console.log('[monitor ws] Ride status update for:', m.ride_id, 'status:', m.status);
@@ -200,16 +235,19 @@ function handleMessage(msg: WsMessage) {
       break;
     }
 
-    case 'manual_match_success': {
-      const m = msg as WsManualMatchSuccess;
-      console.log('[monitor ws] Manual match success:', m.passenger_id, 'to', m.driver_id);
-      useRideStore.getState().updateRide(m.passenger_id, { status: 'accepted' });
+    // The server sends `manual_match_sent`, never `manual_match_success`. The
+    // row-updating branch was listening for the latter, so a ride the operator
+    // had just dispatched sat on the board looking untouched.
+    case 'manual_match_sent': {
+      const m = msg as WsManualMatchSent;
+      console.log('[monitor ws] Manual match sent:', m.passenger_id, '->', m.driver_id);
+      if (m.passenger_id) {
+        // 'accepted' here means "a driver has been dispatched to this request";
+        // the driver has not confirmed yet. The board carries no finer status.
+        useRideStore.getState().updateRide(m.passenger_id, { status: 'accepted' });
+      }
       break;
     }
-
-    case 'manual_match_sent':
-      console.log('[monitor ws] Manual match sent');
-      break;
 
     case 'pending_refreshed':
       console.log('[monitor ws] Pending rides refreshed, requesting list_passengers');
@@ -226,10 +264,16 @@ function handleMessage(msg: WsMessage) {
 
     case 'response': {
       const response = msg as { type: 'response'; response_type: string; status: string; message: string; error_code?: string };
-      if (response.response_type === 'error' && response.error_code === 'CONNECTION_REJECTED_4001') {
-        console.error('[monitor ws] Authentication failed:', response.message);
+      // Both refusal codes end the session. 4003 ("staff privileges required")
+      // was previously unhandled, so the operator saw nothing while the socket
+      // retried forever behind a page that looked like it was working.
+      if (
+        response.response_type === 'error' &&
+        (response.error_code === `CONNECTION_REJECTED_${WS_CLOSE_UNAUTHENTICATED}` ||
+          response.error_code === `CONNECTION_REJECTED_${WS_CLOSE_NOT_STAFF}`)
+      ) {
+        console.error('[monitor ws] Connection rejected:', response.message);
         _authFailed = true;
-        // Clear invalid token and redirect to login
         localStorage.removeItem('sabi_admin_token');
         localStorage.removeItem('sabi_admin_refresh_token');
         window.location.href = '/login';

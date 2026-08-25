@@ -24,3 +24,26 @@ export function avatarInitials(name: string): string {
     .join('')
     .toUpperCase();
 }
+
+/**
+ * Date + time for the ops tables. Returns an em dash for a missing value so a
+ * blank cell never reads as a rendering fault.
+ */
+export function formatDateTime(isoString: string | null | undefined): string {
+  if (!isoString) return '—';
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/** Render an empty value as an em dash rather than an empty cell. */
+export function dash(value: string | number | null | undefined): string {
+  if (value === null || value === undefined || value === '') return '—';
+  return String(value);
+}

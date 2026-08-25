@@ -107,6 +107,13 @@ export interface WsRideUpdateLocation {
   type: 'ride_update';
   ride_id: string;
   update_type: 'location';
+  /**
+   * Who moved. A ride id cannot identify a pin on the map, so the server sends
+   * the profile alongside it. Optional because an older server build will not
+   * include it -- the handler skips the update rather than moving the wrong pin.
+   */
+  profile_id?: string;
+  profile_type?: 'driver' | 'passenger';
   location: { lat: number; lng: number };
   timestamp: string;
 }
@@ -129,13 +136,6 @@ export interface WsDriversList {
 export interface WsPassengersList {
   type: 'passengers_list';
   passengers: WsPassengerRaw[];
-}
-
-export interface WsManualMatchSuccess {
-  type: 'manual_match_success';
-  passenger_id: string;
-  driver_id: string;
-  ride_data: Record<string, unknown>;
 }
 
 export interface WsManualMatchSent {
@@ -164,7 +164,6 @@ export type WsMessage =
   | WsRideUpdateStatus
   | WsDriversList
   | WsPassengersList
-  | WsManualMatchSuccess
   | WsManualMatchSent
   | WsError
   | WsResponse

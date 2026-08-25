@@ -7,9 +7,15 @@ import { useWebSocket } from '../../hooks/useWebSocket';
 import { useRideAlert } from '../../hooks/useRideAlert';
 
 const navItems = [
+  // Live operations: the dispatch board, driven by the websocket.
   { to: '/', label: 'Live Map', icon: '🗺' },
-  { to: '/rides', label: 'Rides', icon: '🚗' },
+  { to: '/rides', label: 'Dispatch', icon: '🚦' },
   { to: '/streams', label: 'Streams', icon: '📡' },
+  // Records: paged, filterable views over the database.
+  { to: '/all-rides', label: 'All Rides', icon: '🚗' },
+  { to: '/drivers', label: 'Drivers', icon: '🧑‍✈️' },
+  { to: '/passengers', label: 'Passengers', icon: '🧍' },
+  { to: '/referrals', label: 'Referrals', icon: '🎁' },
 ];
 
 export default function AppShell() {
