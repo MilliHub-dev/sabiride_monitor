@@ -1,8 +1,8 @@
 import client from './client';
 
 /**
- * Staff-only listing endpoints behind the Drivers / Passengers / Rides /
- * Referrals screens.
+ * Admin API endpoints behind the Drivers / Passengers / Rides / Referrals
+ * screens. Staff-gated on the server.
  *
  * These replace the `/rides` and `/drivers` paths the app used to call, which
  * never existed on the backend. Everything here shares one envelope and one
@@ -86,24 +86,24 @@ const clean = (filters: Record<string, unknown>) =>
 
 /** Extra filters: `is_online` (true/false), `driver_type`. */
 export const getMonitorDrivers = (filters: ListParams = {}) =>
-  client.get<Paginated<MonitorDriver>>('/api/v1/monitor/drivers/', {
+  client.get<Paginated<MonitorDriver>>('/api/v1/admin/drivers/', {
     params: clean(filters),
   });
 
 /** Extra filters: `is_online` (true/false). */
 export const getMonitorPassengers = (filters: ListParams = {}) =>
-  client.get<Paginated<MonitorPassenger>>('/api/v1/monitor/passengers/', {
+  client.get<Paginated<MonitorPassenger>>('/api/v1/admin/passengers/', {
     params: clean(filters),
   });
 
 /** Extra filters: `status`, `service_type`. */
 export const getMonitorRides = (filters: ListParams = {}) =>
-  client.get<Paginated<MonitorRide>>('/api/v1/monitor/rides/', {
+  client.get<Paginated<MonitorRide>>('/api/v1/admin/rides/', {
     params: clean(filters),
   });
 
 /** Extra filters: `min_referrals`. */
 export const getMonitorReferrals = (filters: ListParams = {}) =>
-  client.get<Paginated<MonitorReferrer>>('/api/v1/monitor/referrals/', {
+  client.get<Paginated<MonitorReferrer>>('/api/v1/admin/referrals/', {
     params: clean(filters),
   });
