@@ -1,6 +1,6 @@
 import { MOCK_RIDES } from '../mocks/data';
 import { sendWsAction } from '../hooks/useWebSocket';
-import client from './client';
+import { getMonitorRides } from './monitor';
 import type { Ride } from '../types';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_DATA === 'true';
@@ -46,22 +46,24 @@ export const getRides = (params?: {
       limit: params?.limit ?? 20,
     });
   }
-  return client.get<RidesResponse>('/rides', { params });
+  return getMonitorRides(params as Record<string, string | number>);
 };
 
 export const getPendingRides = () => {
   if (USE_MOCK) return mock<Ride[]>(MOCK_RIDES.filter((r) => r.status === 'pending'));
-  return client.get<Ride[]>('/rides/pending');
+  // 'matched' is a driver assigned but the ride not yet under way.
+  return getMonitorRides({ status: 'matched' });
 };
 
 export const getLiveRides = () => {
   if (USE_MOCK) return mock<Ride[]>(MOCK_RIDES.filter((r) => r.status === 'pending' || r.status === 'active'));
-  return client.get<Ride[]>('/rides/live');
+  return getMonitorRides({ status: 'active' });
 };
 
 export const getRide = (id: string) => {
   if (USE_MOCK) return mock<Ride>(MOCK_RIDES.find((r) => r.id === id) ?? MOCK_RIDES[0]);
-  return client.get<Ride>(`/rides/${id}`);
+  // No detail route on the admin API; search narrows to the one ride.
+  return getMonitorRides({ search: id, page_size: 1 });
 };
 
 /**

@@ -54,4 +54,10 @@ export const login = async (
 
 export const logout = () => Promise.resolve();
 
-export const getMe = () => client.get<Admin>('/api/v1/users/me/sabi-rider');
+// There is deliberately no getMe here.
+//
+// It used to call /api/v1/users/me/sabi-rider - the *driver* profile endpoint,
+// which a staff account cannot use. The backend exposes me/sabi-rider and
+// me/sabi-passenger but no staff equivalent, so there is nothing correct to
+// point it at. The admin's identity comes from the staff login response and is
+// held in useAuthStore; add a real endpoint before reintroducing this.
