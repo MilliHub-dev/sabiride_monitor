@@ -103,7 +103,20 @@ export function useFilteredList<T>(
       } catch (err) {
         if (cancelled || requestId !== requestRef.current) return;
         console.error('[monitor] list request failed', err);
-        setError('Could not load this list. Check your connection and try again.');
+
+        // The admin endpoints name their own fault in `error`. Showing it beats
+        // "check your connection", which is misleading when the server answered
+        // perfectly well and simply failed to build the list.
+        const response = (err as { response?: { status?: number; data?: { error?: string; message?: string } } })
+          ?.response;
+        const serverError = response?.data?.error || response?.data?.message;
+        setError(
+          serverError
+            ? `Server error: ${serverError}`
+            : response?.status
+              ? `Request failed (HTTP ${response.status}).`
+              : 'Could not reach the server. Check your connection and try again.',
+        );
         setRows([]);
         setCount(0);
         setTotalPages(1);
