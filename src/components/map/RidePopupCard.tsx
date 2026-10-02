@@ -7,16 +7,46 @@ function formatCoords(lat: number, lng: number): string {
   return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 }
 
-// Reverse geocode using Google Maps Geocoding API
+// Most precise first: Mapbox returns a stack of features for one coordinate
+// and the first entry is not always the most useful.
+const FEATURE_PRECEDENCE = ['address', 'secondary_address', 'poi', 'street',
+  'neighborhood', 'locality', 'postcode', 'place', 'district', 'region'];
+
+// Looked up once per coordinate and kept for the life of the page. The ride
+// objects are rebuilt on every websocket refresh, so without this the console
+// re-geocoded every visible card for as long as it stayed open.
+const addressCache = new Map<string, string>();
+
 async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  const cacheKey = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+  const cached = addressCache.get(cacheKey);
+  if (cached) return cached;
+
+  const token = import.meta.env.VITE_MAPBOX_TOKEN;
+  if (!token) return formatCoords(lat, lng);
+
   try {
     const response = await fetch(
-      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}`
+      // Mapbox takes longitude first.
+      `https://api.mapbox.com/search/geocode/v6/reverse?longitude=${lng}&latitude=${lat}&access_token=${token}`
     );
     const data = await response.json();
-    if (data.results && data.results.length > 0) {
-      // Return the first formatted address
-      return data.results[0].formatted_address;
+    const features: any[] = data.features ?? [];
+
+    let best: any = features[0];
+    let bestRank = FEATURE_PRECEDENCE.length;
+    for (const feature of features) {
+      const rank = FEATURE_PRECEDENCE.indexOf(feature?.properties?.feature_type);
+      if (rank !== -1 && rank < bestRank) {
+        best = feature;
+        bestRank = rank;
+      }
+    }
+
+    const address = best?.properties?.full_address ?? best?.properties?.name;
+    if (address) {
+      addressCache.set(cacheKey, address);
+      return address;
     }
   } catch (error) {
     console.error('Reverse geocoding failed:', error);
@@ -49,15 +79,19 @@ function RideCard({
     return () => clearInterval(t);
   }, []);
 
-  // Reverse geocode addresses if not provided
+  // Keyed on the coordinates, not on `ride`: that object gets a new identity on
+  // every websocket refresh, which re-ran this lookup every few seconds.
+  const { lat: pickupLat, lng: pickupLng, address: knownPickup } = ride.pickup;
+  const { lat: destLat, lng: destLng, address: knownDest } = ride.destination;
+
   useEffect(() => {
-    if (!ride.pickup.address) {
-      reverseGeocode(ride.pickup.lat, ride.pickup.lng).then(setPickupAddress);
+    if (!knownPickup) {
+      reverseGeocode(pickupLat, pickupLng).then(setPickupAddress);
     }
-    if (!ride.destination.address) {
-      reverseGeocode(ride.destination.lat, ride.destination.lng).then(setDestinationAddress);
+    if (!knownDest) {
+      reverseGeocode(destLat, destLng).then(setDestinationAddress);
     }
-  }, [ride]);
+  }, [pickupLat, pickupLng, knownPickup, destLat, destLng, knownDest]);
 
   return (
     <div

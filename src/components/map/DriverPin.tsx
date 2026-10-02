@@ -1,4 +1,4 @@
-import { Marker } from '@react-google-maps/api';
+import { Marker } from 'react-map-gl/mapbox';
 import type { Driver } from '../../types';
 
 interface Props {
@@ -13,15 +13,24 @@ export default function DriverPin({ driver, isSelected, onClick }: Props) {
 
   return (
     <Marker
-      position={driver.location}
-      onClick={onClick}
-      title={`${driver.name} · ${driver.status}`}
-      zIndex={isSelected ? 10 : 1}
-      icon={{
-        url: iconUrl,
-        scaledSize: new google.maps.Size(size, size),
-        anchor: new google.maps.Point(size / 2, size / 2),
+      longitude={driver.location.lng}
+      latitude={driver.location.lat}
+      anchor="center"
+      style={{ zIndex: isSelected ? 10 : 1 }}
+      onClick={(event) => {
+        // Without this the click also reaches the map underneath.
+        event.originalEvent.stopPropagation();
+        onClick();
       }}
-    />
+    >
+      <img
+        src={iconUrl}
+        alt={`${driver.name} · ${driver.status}`}
+        title={`${driver.name} · ${driver.status}`}
+        width={size}
+        height={size}
+        style={{ cursor: 'pointer', display: 'block' }}
+      />
+    </Marker>
   );
 }

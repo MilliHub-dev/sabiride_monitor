@@ -1,4 +1,4 @@
-import { OverlayView } from '@react-google-maps/api';
+import { Marker } from 'react-map-gl/mapbox';
 import type { Ride } from '../../types';
 
 interface Props {
@@ -8,12 +8,16 @@ interface Props {
 
 export default function RidePin({ ride, onClick }: Props) {
   return (
-    <OverlayView
-      position={ride.pickup}
-      mapPaneName={OverlayView.OVERLAY_MOUSE_TARGET}
-      getPixelPositionOffset={(w, h) => ({ x: -w / 2, y: -h / 2 })}
+    <Marker
+      longitude={ride.pickup.lng}
+      latitude={ride.pickup.lat}
+      anchor="center"
+      onClick={(event) => {
+        event.originalEvent.stopPropagation();
+        onClick();
+      }}
     >
-      <div onClick={onClick} style={{ cursor: 'pointer', position: 'relative', width: 24, height: 24 }}>
+      <div style={{ cursor: 'pointer', position: 'relative', width: 24, height: 24 }}>
         {/* Pulsing ring */}
         <span className="ride-pin-pulse" />
         {/* Core dot */}
@@ -32,6 +36,6 @@ export default function RidePin({ ride, onClick }: Props) {
           }}
         />
       </div>
-    </OverlayView>
+    </Marker>
   );
 }

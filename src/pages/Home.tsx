@@ -5,7 +5,7 @@ import LiveMap from '../components/map/LiveMap';
 import RidePopupCard from '../components/map/RidePopupCard';
 import DriverSidebar from '../components/drivers/DriverSidebar';
 import AssignModal from '../components/rides/AssignModal';
-import type { Ride } from '../types';
+import type { Ride, Location } from '../types';
 
 const NIGERIAN_STATES = [
   'FCT', 'Lagos', 'Kano', 'Rivers', 'Oyo', 'Kaduna', 'Enugu',
@@ -24,7 +24,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedState, setSelectedState] = useState('');
   const [onlineOnly, setOnlineOnly] = useState(false);
-  const [panTarget, setPanTarget] = useState<google.maps.LatLngLiteral | null>(null);
+  const [panTarget, setPanTarget] = useState<Location | null>(null);
   const [assigningRide, setAssigningRide] = useState<Ride | null>(null);
   const [dismissedRideIds, setDismissedRideIds] = useState<Set<string>>(new Set());
 

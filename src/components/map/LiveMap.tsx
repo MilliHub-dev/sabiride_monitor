@@ -1,27 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { GoogleMap, useJsApiLoader } from '@react-google-maps/api';
-import type { Ride, Driver } from '../../types';
+import { useEffect, useRef, useState } from 'react';
+import Map, { NavigationControl, type MapRef } from 'react-map-gl/mapbox';
+import 'mapbox-gl/dist/mapbox-gl.css';
+import type { Ride, Driver, Location } from '../../types';
 import DriverPin from './DriverPin';
 import RidePin from './RidePin';
 
 const ABUJA = { lat: 9.0765, lng: 7.3986 };
 
-const MAP_OPTIONS: google.maps.MapOptions = {
-  disableDefaultUI: true,
-  zoomControl: true,
-  styles: [
-    { elementType: 'geometry', stylers: [{ color: '#0d1117' }] },
-    { elementType: 'labels.text.stroke', stylers: [{ color: '#0d1117' }] },
-    { elementType: 'labels.text.fill', stylers: [{ color: '#6b7280' }] },
-    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#1a2332' }] },
-    { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: '#111827' }] },
-    { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#1f2d45' }] },
-    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#060d16' }] },
-    { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-    { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-    { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#1a2332' }] },
-  ],
-};
+// Mapbox ships a dark theme, which replaces the hand-written style array this
+// map used to carry. Attribution stays on: Mapbox's terms require it.
+const MAP_STYLE = 'mapbox://styles/mapbox/dark-v11';
+
+const TOKEN = import.meta.env.VITE_MAPBOX_TOKEN ?? '';
 
 interface Props {
   drivers: Driver[];
@@ -29,7 +19,7 @@ interface Props {
   selectedDriverId: string | null;
   onDriverClick: (driverId: string) => void;
   onRideClick: (ride: Ride) => void;
-  panTarget: google.maps.LatLngLiteral | null;
+  panTarget: Location | null;
 }
 
 export default function LiveMap({
@@ -40,67 +30,55 @@ export default function LiveMap({
   onRideClick,
   panTarget,
 }: Props) {
-  const mapRef = useRef<google.maps.Map | null>(null);
-  const [center, setCenter] = useState<google.maps.LatLngLiteral>(ABUJA);
-
-  console.log('[LiveMap] Rendering with drivers:', drivers);
-
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? '',
-  });
+  const mapRef = useRef<MapRef | null>(null);
+  const [center, setCenter] = useState(ABUJA);
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setCenter({ lat: latitude, lng: longitude });
-        },
-        (error) => {
-          console.warn('Geolocation error:', error);
-          // Fallback to Abuja if geolocation fails
-        },
-      );
-    }
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const { latitude, longitude } = position.coords;
+        setCenter({ lat: latitude, lng: longitude });
+        mapRef.current?.flyTo({ center: [longitude, latitude], duration: 800 });
+      },
+      (error) => {
+        console.warn('Geolocation error:', error);
+        // Stay on Abuja.
+      },
+    );
   }, []);
 
-  const onLoad = useCallback((map: google.maps.Map) => {
-    mapRef.current = map;
-    map.panTo(center);
-  }, [center]);
-
   useEffect(() => {
-    if (mapRef.current && panTarget) {
-      mapRef.current.panTo(panTarget);
+    if (panTarget) {
+      mapRef.current?.flyTo({
+        center: [panTarget.lng, panTarget.lat],
+        duration: 1000,
+      });
     }
   }, [panTarget]);
 
-  if (!isLoaded) {
+  if (!TOKEN) {
     return (
-      <div
-        style={{
-          flex: 1,
-          background: '#0d1117',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--color-text-muted)',
-          fontSize: 13,
-        }}
-      >
-        Loading map…
+      <div style={placeholderStyle}>
+        VITE_MAPBOX_TOKEN is not set — add it to .env and restart the dev server
       </div>
     );
   }
 
   return (
-    <GoogleMap
-      mapContainerStyle={{ flex: 1, height: '100%' }}
-      center={center}
-      zoom={13}
-      options={MAP_OPTIONS}
-      onLoad={onLoad}
+    <Map
+      ref={mapRef}
+      mapboxAccessToken={TOKEN}
+      initialViewState={{
+        longitude: center.lng,
+        latitude: center.lat,
+        zoom: 13,
+      }}
+      mapStyle={MAP_STYLE}
+      style={{ width: '100%', height: '100%' }}
     >
+      <NavigationControl position="top-right" showCompass={false} />
+
       {drivers.map((driver) => (
         <DriverPin
           key={driver.id}
@@ -112,6 +90,19 @@ export default function LiveMap({
       {pendingRides.map((ride) => (
         <RidePin key={ride.id} ride={ride} onClick={() => onRideClick(ride)} />
       ))}
-    </GoogleMap>
+    </Map>
   );
 }
+
+const placeholderStyle = {
+  flex: 1,
+  height: '100%',
+  background: '#0d1117',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: 'var(--color-text-muted)',
+  fontSize: 13,
+  textAlign: 'center' as const,
+  padding: 24,
+};
